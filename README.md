@@ -2,7 +2,8 @@
 
 [日本語 README はこちら](README.ja.md)
 
-![f](./README/eg2.png)
+<video src="./README/rec_panop.mp4" autoplay loop muted playsinline width="100%"></video>
+
 
 A Hyprland workspace overview. When launched, it displays the workspaces open
 in Hyprland arranged along a circle. The focused workspace is shown at maximum
