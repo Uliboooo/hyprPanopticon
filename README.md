@@ -2,7 +2,7 @@
 
 [日本語 README はこちら](README.ja.md)
 
-![f](./README/eg.png)
+![f](./README/eg2.png)
 
 A Hyprland workspace overview. When launched, it displays the workspaces open
 in Hyprland arranged along a circle. The focused workspace is shown at maximum
