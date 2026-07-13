@@ -12,6 +12,8 @@ pub struct Config {
     pub ring: RingParams,
     /// Show only the focused monitor's workspaces instead of every monitor's.
     pub per_monitor_workspaces: bool,
+    /// Overlay each ring preview with its workspace name/index badge.
+    pub show_workspace_index: bool,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -33,6 +35,8 @@ struct FileConfig {
     center_pull: Option<f64>,
     /// true = only the focused monitor's workspaces; false (default) = all.
     per_monitor_workspaces: Option<bool>,
+    /// true = badge each ring preview with its workspace index; false (default) = no badge.
+    show_workspace_index: Option<bool>,
 }
 
 fn config_path() -> Option<std::path::PathBuf> {
@@ -76,6 +80,9 @@ fn apply(config: &mut Config, file: &FileConfig) {
     if let Some(v) = file.per_monitor_workspaces {
         config.per_monitor_workspaces = v;
     }
+    if let Some(v) = file.show_workspace_index {
+        config.show_workspace_index = v;
+    }
 }
 
 #[cfg(test)]
@@ -94,6 +101,15 @@ mod tests {
         // untouched keys keep defaults
         assert_eq!(config.ring.margin, RingParams::default().margin);
         assert!(!config.per_monitor_workspaces);
+    }
+
+    #[test]
+    fn show_workspace_index_defaults_off_and_parses() {
+        let mut config = Config::default();
+        apply(&mut config, &toml::from_str("").unwrap());
+        assert!(!config.show_workspace_index);
+        apply(&mut config, &toml::from_str("show_workspace_index = true").unwrap());
+        assert!(config.show_workspace_index);
     }
 
     #[test]

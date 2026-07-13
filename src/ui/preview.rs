@@ -25,6 +25,8 @@ mod imp {
         pub ring_focused: Cell<bool>,
         /// 1-based hotkey number shown in the badge of special previews.
         pub special_index: Cell<Option<usize>>,
+        /// Show the workspace name/index badge on normal previews too.
+        pub show_label: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -82,27 +84,31 @@ mod imp {
             }
             snapshot.pop();
 
-            // Hotkey badge on a dark pill, bottom-center. Only special
-            // previews carry one — normal workspaces have no digit binding,
-            // so they show no badge.
-            if let Some(i) = self.special_index.get() {
-                if let Some(model) = self.model.borrow().as_ref() {
-                    let text = format!("{i}: {}", model.name);
-                    let layout = widget.create_pango_layout(Some(&text));
-                    let (tw, th) = layout.pixel_size();
-                    let (tw, th) = (tw as f32, th as f32);
-                    let tx = (w - tw) / 2.0;
-                    let ty = h - th - 8.0;
-                    let pill = graphene::Rect::new(tx - 8.0, ty - 3.0, tw + 16.0, th + 6.0);
-                    let rounded = gsk::RoundedRect::from_rect(pill, pill.height() / 2.0);
-                    snapshot.push_rounded_clip(&rounded);
-                    snapshot.append_color(&gdk::RGBA::new(0.0, 0.0, 0.0, 0.65), &pill);
-                    snapshot.pop();
-                    snapshot.save();
-                    snapshot.translate(&graphene::Point::new(tx, ty));
-                    snapshot.append_layout(&layout, &gdk::RGBA::new(1.0, 1.0, 1.0, 0.95));
-                    snapshot.restore();
+            // Badge on a dark pill, bottom-center. Special previews always
+            // carry their digit hotkey; normal workspaces show their name
+            // only when the show_workspace_index option is on.
+            let badge = self.model.borrow().as_ref().and_then(|model| {
+                match self.special_index.get() {
+                    Some(i) => Some(format!("{i}: {}", model.name)),
+                    None if self.show_label.get() => Some(model.name.clone()),
+                    None => None,
                 }
+            });
+            if let Some(text) = badge {
+                let layout = widget.create_pango_layout(Some(&text));
+                let (tw, th) = layout.pixel_size();
+                let (tw, th) = (tw as f32, th as f32);
+                let tx = (w - tw) / 2.0;
+                let ty = h - th - 8.0;
+                let pill = graphene::Rect::new(tx - 8.0, ty - 3.0, tw + 16.0, th + 6.0);
+                let rounded = gsk::RoundedRect::from_rect(pill, pill.height() / 2.0);
+                snapshot.push_rounded_clip(&rounded);
+                snapshot.append_color(&gdk::RGBA::new(0.0, 0.0, 0.0, 0.65), &pill);
+                snapshot.pop();
+                snapshot.save();
+                snapshot.translate(&graphene::Point::new(tx, ty));
+                snapshot.append_layout(&layout, &gdk::RGBA::new(1.0, 1.0, 1.0, 0.95));
+                snapshot.restore();
             }
 
             // Border: accent when ring-focused, amber for specials, subtle otherwise.
@@ -213,6 +219,13 @@ impl WorkspacePreview {
     pub fn set_special_index(&self, index: usize) {
         self.imp().special_index.set(Some(index));
         self.queue_draw();
+    }
+
+    pub fn set_show_label(&self, show: bool) {
+        if self.imp().show_label.get() != show {
+            self.imp().show_label.set(show);
+            self.queue_draw();
+        }
     }
 
     pub fn set_ring_focused(&self, focused: bool) {

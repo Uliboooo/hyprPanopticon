@@ -136,6 +136,9 @@ center_pull = 0.0
 # Show only the focused monitor's workspaces (default false: the ring shows
 # every monitor's workspaces).
 per_monitor_workspaces = false
+# Overlay each ring preview with a badge showing its workspace name/index
+# (default false).
+show_workspace_index = false
 ```
 
 ## Building from source

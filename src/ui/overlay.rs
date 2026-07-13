@@ -57,6 +57,7 @@ pub fn build(
 
     let ring = RingView::default();
     ring.set_params(config.ring);
+    ring.set_show_index(config.show_workspace_index);
     window.set_child(Some(&ring));
 
     // Capture worker; on failure previews stay schematic.
