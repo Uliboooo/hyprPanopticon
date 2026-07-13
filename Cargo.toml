@@ -1,6 +1,6 @@
 [package]
 name = "hyprpanopticon"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 description = "Hyprland workspace overview: workspaces arranged on a circle with live previews"
@@ -8,7 +8,10 @@ description = "Hyprland workspace overview: workspaces arranged on a circle with
 [dependencies]
 gtk4 = { version = "0.11", features = ["v4_14"] }
 gtk4-layer-shell = "0.8"
-hyprland = { version = "0.4.0-beta.3", default-features = false, features = ["data", "listener"] }
+hyprland = { version = "0.4.0-beta.3", default-features = false, features = [
+  "data",
+  "listener",
+] }
 wayland-client = "0.31"
 wayland-protocols-hyprland = { version = "1.2", features = ["client"] }
 memfd = "0.6"
