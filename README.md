@@ -36,6 +36,13 @@ ring on the left edge; click one or press its number to toggle it. Windows that 
 monitor viewport (e.g. with a scrolling layout) are clipped to what the
 monitor would show.
 
+## Supported Hyprland versions
+
+Developed and tested against **Hyprland 0.55**. Other recent versions should
+work as long as they provide the `hyprland-toplevel-export-v1` protocol and
+the JSON IPC (`hyprctl -j`) interface. Both the classic dispatcher syntax and
+the Lua IPC layer (`hl.dsp.*`) are supported for workspace switching.
+
 ## Installation (Nix)
 
 Try it without installing:

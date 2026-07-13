@@ -22,6 +22,10 @@ fn send_command(cmd: &str) -> anyhow::Result<String> {
 /// Lua-config syntax (`hl.dsp.focus({ workspace = N })`) used by Hyprland
 /// setups with a Lua IPC layer.
 pub fn switch_workspace(id: i32) -> anyhow::Result<()> {
+    // A special workspace that is currently shown stays stacked above the
+    // target workspace after `dispatch workspace`, which makes the switch
+    // look like a no-op. Hide any visible special first.
+    hide_active_specials();
     let classic = send_command(&format!("dispatch workspace {id}"))?;
     if classic.trim() == "ok" {
         return Ok(());
@@ -31,6 +35,29 @@ pub fn switch_workspace(id: i32) -> anyhow::Result<()> {
         return Ok(());
     }
     anyhow::bail!("workspace dispatch rejected: {}", lua.trim())
+}
+
+/// Toggle away any special workspace currently shown on some monitor.
+/// Best-effort: a failed query or dispatch only logs.
+fn hide_active_specials() {
+    use hyprland::data::Monitors;
+    use hyprland::shared::{HyprData, HyprDataVec};
+    let monitors = match Monitors::get().map(HyprDataVec::to_vec) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("hyprPanopticon: monitor query failed: {e:#}");
+            return;
+        }
+    };
+    for m in monitors {
+        if m.special_workspace.id < 0 {
+            let name = &m.special_workspace.name;
+            let short = name.strip_prefix("special:").unwrap_or(name);
+            if let Err(e) = toggle_special(short) {
+                eprintln!("hyprPanopticon: hiding special '{short}' failed: {e:#}");
+            }
+        }
+    }
 }
 
 /// Toggle a special workspace by its short name (without "special:").
