@@ -1,5 +1,7 @@
 # hyprPanopticon
 
+[日本語 README はこちら](README.ja.md)
+
 A Hyprland workspace overview. When launched, it displays the workspaces open
 in Hyprland arranged along a circle. The focused workspace is shown at maximum
 size while the other previews are automatically scaled down so the entire
@@ -34,10 +36,57 @@ monitor would show.
 
 ## Installation (Nix)
 
+Try it without installing:
+
 ```sh
-nix run github:<you>/hyprPanopticon
-# or in a flake: inputs.hyprpanopticon.url = "github:<you>/hyprPanopticon";
+nix run github:Uliboooo/hyprPanopticon
 ```
+
+### As a flake input (e.g. NixOS / home-manager)
+
+Add it to your flake's inputs:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    hyprpanopticon = {
+      url = "github:Uliboooo/hyprPanopticon";
+      # optional: share your nixpkgs instead of pulling a second copy
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = { self, nixpkgs, hyprpanopticon, ... }: {
+    # ... your outputs
+  };
+}
+```
+
+Then reference `hyprpanopticon.packages.${system}.default` wherever you build
+your package list. With home-manager:
+
+```nix
+{ pkgs, inputs, ... }:
+{
+  home.packages = [
+    inputs.hyprpanopticon.packages.${pkgs.system}.default
+  ];
+}
+```
+
+Or with a NixOS module:
+
+```nix
+{ pkgs, inputs, ... }:
+{
+  environment.systemPackages = [
+    inputs.hyprpanopticon.packages.${pkgs.system}.default
+  ];
+}
+```
+
+Supported systems: `x86_64-linux`, `aarch64-linux`.
 
 Example Hyprland config:
 
