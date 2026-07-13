@@ -41,12 +41,12 @@ CONFIGURATION:
     ($XDG_CONFIG_HOME is honored). All keys are optional; out-of-range
     values are clamped:
 
-        min_scale = 0.45               # smallest preview scale (0.05..1)
-        falloff = 2.0                  # shrink speed away from focus (0.1..10)
-        focus_width = 0.34             # focused width as screen fraction (0.1..0.8)
+        min_scale = 0.6                # smallest preview scale (0.05..1)
+        falloff = 1.2                  # shrink speed away from focus (0.1..10)
+        focus_width = 0.32             # focused width as screen fraction (0.1..0.8)
         margin = 24                    # screen-edge margin in px (0..200)
-        spread = 0.7                   # angular density (0..1)
-        center_pull = 0.4              # pull side previews inward (0..1)
+        spread = 0.25                  # angular density (0..1)
+        center_pull = 0.0              # pull side previews inward (0..1)
         per_monitor_workspaces = false # true = focused monitor's workspaces only
 
     See the README for details on each key.

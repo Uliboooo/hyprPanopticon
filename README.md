@@ -106,22 +106,22 @@ Optional, at `~/.config/hyprpanopticon/config.toml`. All keys are optional;
 out-of-range values are clamped:
 
 ```toml
-# Scale of the preview opposite the focus (0.05..1.0, default 0.45).
-min_scale = 0.45
-# How fast previews shrink away from the focus (0.1..10, default 2.0).
-falloff = 2.0
-# Focused preview width as a fraction of the screen (0.1..0.8, default 0.34).
-focus_width = 0.34
+# Scale of the preview opposite the focus (0.05..1.0, default 0.6).
+min_scale = 0.6
+# How fast previews shrink away from the focus (0.1..10, default 1.2).
+falloff = 1.2
+# Focused preview width as a fraction of the screen (0.1..0.8, default 0.32).
+focus_width = 0.32
 # Screen-edge margin in px (0..200, default 24).
 margin = 24
-# Angular density (0..1, default 0.7): 0 spaces previews evenly around the
-# circle; higher values give the top more room and pack the small previews
+# Angular density (0..1, default 0.25): 0 spaces previews evenly around the
+# ring; higher values give the top more room and pack the small previews
 # together at the bottom.
-spread = 0.7
-# Pull small side previews horizontally toward the center (0..1, default
-# 0.4): 0 keeps everything on one circle (hollow middle), higher fills the
-# center while the top and bottom previews stay put.
-center_pull = 0.4
+spread = 0.25
+# Pull small side previews horizontally toward the center (0..1, default 0):
+# 0 keeps everything on one ring (open middle), higher fills the center
+# while the top and bottom previews stay put.
+center_pull = 0.0
 # Show only the focused monitor's workspaces (default false: the ring shows
 # every monitor's workspaces).
 per_monitor_workspaces = false
@@ -140,8 +140,8 @@ single toplevel (address from `hyprctl clients`) to a PNG.
 
 ## Architecture
 
-- `src/layout.rs` — pure circular-layout math (angle, cosine scale falloff,
-  radius fitting); unit-tested.
+- `src/layout.rs` — pure ring-layout math (angle, cosine scale falloff,
+  elliptical radius fitting, overlap-bounded auto-sizing); unit-tested.
 - `src/ipc/` — Hyprland IPC: one-shot snapshot (monitors/workspaces/clients)
   and the event listener that triggers live refreshes.
 - `src/capture/` — a worker thread with its own Wayland connection speaking
