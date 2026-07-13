@@ -112,6 +112,9 @@ center_pull = 0.4
 # フォーカス中のモニターのワークスペースのみを表示する(デフォルト false:
 # リングには全モニターのワークスペースが表示されます)。
 per_monitor_workspaces = false
+# 各リングプレビューにワークスペース名/番号のバッジを重ねて表示する
+# (デフォルト false)。
+show_workspace_index = false
 ```
 
 ## ソースからビルド

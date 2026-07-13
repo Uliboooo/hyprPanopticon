@@ -36,6 +36,8 @@ mod imp {
         pub tick_id: RefCell<Option<gtk::TickCallbackId>>,
         pub aspect: Cell<f64>,
         pub params: RefCell<RingParams>,
+        /// Badge each ring preview with its workspace name/index.
+        pub show_index: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -158,6 +160,13 @@ impl RingView {
         self.queue_allocate();
     }
 
+    pub fn set_show_index(&self, show: bool) {
+        self.imp().show_index.set(show);
+        for preview in self.imp().previews.borrow().iter() {
+            preview.set_show_label(show);
+        }
+    }
+
     pub fn set_snapshot(&self, snapshot: &Snapshot) {
         let imp = self.imp();
         // Keep the user's ring focus across live refreshes when possible.
@@ -180,6 +189,7 @@ impl RingView {
             // workspaces from other monitors render correctly.
             let preview = WorkspacePreview::new(ws.clone(), ws.viewport);
             preview.set_parent(self);
+            preview.set_show_label(imp.show_index.get());
             previews.push(preview);
         }
         let mut special_previews = Vec::with_capacity(snapshot.specials.len());
