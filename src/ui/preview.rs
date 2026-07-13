@@ -82,21 +82,27 @@ mod imp {
             }
             snapshot.pop();
 
-            // Workspace name badge, bottom-center.
-            if let Some(model) = self.model.borrow().as_ref() {
-                let text = match self.special_index.get() {
-                    Some(i) => format!("{i}: {}", model.name),
-                    None => model.name.clone(),
-                };
-                let layout = widget.create_pango_layout(Some(&text));
-                let (tw, th) = layout.pixel_size();
-                snapshot.save();
-                snapshot.translate(&graphene::Point::new(
-                    (w - tw as f32) / 2.0,
-                    h - th as f32 - 6.0,
-                ));
-                snapshot.append_layout(&layout, &gdk::RGBA::new(1.0, 1.0, 1.0, 0.85));
-                snapshot.restore();
+            // Hotkey badge on a dark pill, bottom-center. Only special
+            // previews carry one — normal workspaces have no digit binding,
+            // so they show no badge.
+            if let Some(i) = self.special_index.get() {
+                if let Some(model) = self.model.borrow().as_ref() {
+                    let text = format!("{i}: {}", model.name);
+                    let layout = widget.create_pango_layout(Some(&text));
+                    let (tw, th) = layout.pixel_size();
+                    let (tw, th) = (tw as f32, th as f32);
+                    let tx = (w - tw) / 2.0;
+                    let ty = h - th - 8.0;
+                    let pill = graphene::Rect::new(tx - 8.0, ty - 3.0, tw + 16.0, th + 6.0);
+                    let rounded = gsk::RoundedRect::from_rect(pill, pill.height() / 2.0);
+                    snapshot.push_rounded_clip(&rounded);
+                    snapshot.append_color(&gdk::RGBA::new(0.0, 0.0, 0.0, 0.65), &pill);
+                    snapshot.pop();
+                    snapshot.save();
+                    snapshot.translate(&graphene::Point::new(tx, ty));
+                    snapshot.append_layout(&layout, &gdk::RGBA::new(1.0, 1.0, 1.0, 0.95));
+                    snapshot.restore();
+                }
             }
 
             // Border: accent when ring-focused, amber for specials, subtle otherwise.
