@@ -13,9 +13,26 @@ fn main() -> glib::ExitCode {
     // Layer-shell requires the Wayland GDK backend; never fall back to X11.
     std::env::set_var("GDK_BACKEND", "wayland");
 
+    let args: Vec<String> = std::env::args().collect();
+
+    // Hidden debug mode: `hyprpanopticon --switch-workspace N` exercises the
+    // workspace dispatch path without the UI.
+    if let Some(i) = args.iter().position(|a| a == "--switch-workspace") {
+        let id: i32 = args
+            .get(i + 1)
+            .and_then(|s| s.parse().ok())
+            .expect("usage: --switch-workspace N");
+        return match ipc::switch_workspace(id) {
+            Ok(()) => glib::ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("hyprPanopticon: {e:#}");
+                glib::ExitCode::FAILURE
+            }
+        };
+    }
+
     // Hidden debug mode: `hyprpanopticon --dump-window 0xADDR [out.png]`
     // captures one toplevel and writes it to a PNG.
-    let args: Vec<String> = std::env::args().collect();
     if let Some(i) = args.iter().position(|a| a == "--dump-window") {
         let addr = args
             .get(i + 1)

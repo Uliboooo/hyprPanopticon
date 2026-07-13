@@ -10,7 +10,6 @@ use gtk::gdk;
 use gtk::glib;
 use gtk::prelude::*;
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
-use hyprland::dispatch::{Dispatch, DispatchType, WorkspaceIdentifierWithSpecial};
 
 use crate::capture::{self, CaptureHandle};
 use crate::ipc;
@@ -276,10 +275,8 @@ fn wire_input(overlay: &Rc<Overlay>) {
 }
 
 fn switch_and_close(window: &gtk::ApplicationWindow, ws_id: i32) {
-    if let Err(e) = Dispatch::call(DispatchType::Workspace(WorkspaceIdentifierWithSpecial::Id(
-        ws_id,
-    ))) {
-        eprintln!("hyprPanopticon: workspace dispatch failed: {e}");
+    if let Err(e) = ipc::switch_workspace(ws_id) {
+        eprintln!("hyprPanopticon: workspace dispatch failed: {e:#}");
     }
     window.close();
 }
