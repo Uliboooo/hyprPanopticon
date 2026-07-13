@@ -18,17 +18,22 @@ pub struct RingParams {
     /// the circle; higher values give the large previews near the focus more
     /// room and pack the small ones together at the bottom.
     pub spread: f64,
+    /// Pull shrunken previews toward the vertical center line, 0..=1. Only
+    /// the horizontal position is affected: side previews slide inward and
+    /// fill the middle of the ring, while top/bottom previews stay put.
+    pub center_pull: f64,
 }
 
 impl Default for RingParams {
     fn default() -> Self {
         Self {
             s_max: 1.0,
-            s_min: 0.35,
+            s_min: 0.45,
             falloff: 2.0,
             focus_width_frac: 0.34,
             margin: 24.0,
             spread: 0.7,
+            center_pull: 0.4,
         }
     }
 }
@@ -98,13 +103,25 @@ pub fn compute(
         })
         .collect();
 
+    // Horizontal pull factor per item: shrunken previews slide toward the
+    // vertical center line so the middle of the ring doesn't stay hollow.
+    // The vertical position keeps the full radius, so the bottom previews
+    // stay anchored near the bottom edge.
+    let pull = p.center_pull.clamp(0.0, 1.0);
+    let scale_span = (p.s_max - p.s_min).max(1e-9);
+    let pull_factor = |scale: f64| {
+        let s_norm = ((scale - p.s_min) / scale_span).clamp(0.0, 1.0);
+        1.0 - pull * (1.0 - s_norm)
+    };
+
     // Largest radius at which every preview still fits on screen (and clear
-    // of the reserved left strip), given its own size at its own angle.
+    // of the reserved left strip), given its own size, angle, and pull.
     let left_reserved = left_inset.max(p.margin);
     let mut radius = f64::INFINITY;
     for &(theta, scale) in &items {
         let (w, h) = (w_f * scale, h_f * scale);
         let (cos, sin) = (theta.cos(), theta.sin());
+        let k = pull_factor(scale).max(1e-6);
         let avail_x = if cos < 0.0 {
             cx - left_reserved - w / 2.0
         } else {
@@ -112,7 +129,7 @@ pub fn compute(
         };
         let avail_y = screen_h / 2.0 - p.margin - h / 2.0;
         if cos.abs() > 1e-6 {
-            radius = radius.min(avail_x.max(0.0) / cos.abs());
+            radius = radius.min(avail_x.max(0.0) / (k * cos.abs()));
         }
         if sin.abs() > 1e-6 {
             radius = radius.min(avail_y.max(0.0) / sin.abs());
@@ -128,7 +145,7 @@ pub fn compute(
             let w = w_f * scale;
             let h = h_f * scale;
             Placement {
-                x: cx + radius * theta.cos() - w / 2.0,
+                x: cx + radius * pull_factor(scale) * theta.cos() - w / 2.0,
                 y: cy + radius * theta.sin() - h / 2.0,
                 width: w,
                 height: h,
@@ -214,8 +231,8 @@ mod tests {
     #[test]
     fn radius_grows_versus_worst_case() {
         // The per-angle fitting must beat the old worst-case radius so the
-        // ring actually spreads out.
-        let p = RingParams::default();
+        // ring actually spreads out (measured without the center pull).
+        let p = RingParams { center_pull: 0.0, ..RingParams::default() };
         let places = compute(8, 0.0, W, H, ASPECT, 0.0, &p);
         let w_f = p.focus_width_frac * W;
         let old_radius = H.min(W) / 2.0 - w_f.max(w_f / ASPECT) / 2.0 - p.margin;
@@ -223,6 +240,29 @@ mod tests {
         let bottom = &places[4];
         let dist = (bottom.y + bottom.height / 2.0 - H / 2.0).abs();
         assert!(dist > old_radius + 50.0, "radius did not grow: {dist} vs {old_radius}");
+    }
+
+    #[test]
+    fn center_pull_fills_the_middle() {
+        let flat = RingParams { center_pull: 0.0, ..RingParams::default() };
+        let pulled = RingParams { center_pull: 0.5, ..RingParams::default() };
+        // A small side preview slides toward the vertical center line…
+        let side_dist = |p: &RingParams| {
+            let places = compute(8, 0.0, W, H, ASPECT, 0.0, p);
+            let s = &places[2];
+            (s.x + s.width / 2.0 - W / 2.0).abs()
+        };
+        let (d_flat, d_pulled) = (side_dist(&flat), side_dist(&pulled));
+        assert!(
+            d_pulled < d_flat,
+            "pull did not move side previews inward: {d_pulled} vs {d_flat}"
+        );
+        // …while the bottom preview keeps its vertical position.
+        let bottom_y = |p: &RingParams| {
+            let places = compute(8, 0.0, W, H, ASPECT, 0.0, p);
+            places[4].y + places[4].height / 2.0
+        };
+        assert!((bottom_y(&flat) - bottom_y(&pulled)).abs() < 1e-6);
     }
 
     #[test]
@@ -241,6 +281,26 @@ mod tests {
         let places = compute(4, 0.0, W, H, ASPECT, 0.0, &p);
         assert!((places[0].scale - p.s_max).abs() < 1e-9);
         assert!((places[2].scale - p.s_min).abs() < 1e-9);
+    }
+
+    #[test]
+    fn default_layout_fills_center_and_bottom() {
+        // Regression for the two reported holes: a hollow ring middle, and
+        // (after the first pull attempt) an empty bottom band.
+        let p = RingParams::default();
+        let places = compute(10, 0.0, W, H, ASPECT, 0.0, &p);
+        // Bottom band is used: some preview reaches the lower part of the screen.
+        let lowest = places
+            .iter()
+            .map(|pl| pl.y + pl.height)
+            .fold(0.0f64, f64::max);
+        assert!(lowest > H * 0.85, "bottom band empty, lowest edge {lowest}");
+        // Center band is used: some preview center lands near the middle.
+        let center_used = places.iter().any(|pl| {
+            let (cx, cy) = (pl.x + pl.width / 2.0, pl.y + pl.height / 2.0);
+            (cx - W / 2.0).abs() < W * 0.17 && (cy - H / 2.0).abs() < H * 0.22
+        });
+        assert!(center_used, "middle of the ring is hollow: {places:#?}");
     }
 
     #[test]

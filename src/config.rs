@@ -21,6 +21,9 @@ struct FileConfig {
     /// Angular density warp (0.0..=1.0): 0 = uniform ring, higher = more
     /// room at the top, small previews packed at the bottom.
     spread: Option<f64>,
+    /// Pull small side previews horizontally toward the center (0.0..=1.0):
+    /// 0 = all on one circle (hollow middle), higher = center filled.
+    center_pull: Option<f64>,
 }
 
 fn config_path() -> Option<std::path::PathBuf> {
@@ -56,6 +59,9 @@ fn apply(params: &mut RingParams, config: &FileConfig) {
     }
     if let Some(v) = config.spread {
         params.spread = v.clamp(0.0, 1.0);
+    }
+    if let Some(v) = config.center_pull {
+        params.center_pull = v.clamp(0.0, 1.0);
     }
 }
 
