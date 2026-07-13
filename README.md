@@ -1,8 +1,11 @@
+
+
+
 # hyprPanopticon
 
 [日本語 README はこちら](README.ja.md)
 
-<video src="./README/rec_panop.mp4" autoplay loop muted playsinline width="100%"></video>
+<video src="https://github.com/user-attachments/assets/188f8d73-e5be-428e-a931-2073724422b0" autoplay loop muted playsinline width="100%"></video>
 
 
 A Hyprland workspace overview. When launched, it displays the workspaces open
