@@ -68,6 +68,9 @@ pub struct Snapshot {
     pub monitor_name: String,
     /// Normal workspaces on the focused monitor, sorted by id.
     pub workspaces: Vec<WorkspaceModel>,
+    /// Special workspaces (negative ids) on the focused monitor; shown
+    /// outside the ring. Their `name` is stripped of the "special:" prefix.
+    pub specials: Vec<WorkspaceModel>,
     /// Currently active workspace id (initial ring focus).
     pub active_workspace: i32,
 }

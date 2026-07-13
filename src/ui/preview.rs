@@ -93,9 +93,12 @@ mod imp {
                 snapshot.restore();
             }
 
-            // Border: accent when ring-focused, subtle otherwise.
+            // Border: accent when ring-focused, amber for specials, subtle otherwise.
+            let is_special = self.model.borrow().as_ref().map(|m| m.id < 0).unwrap_or(false);
             let (bw, color) = if self.ring_focused.get() {
                 (3.0, gdk::RGBA::new(0.55, 0.75, 1.0, 1.0))
+            } else if is_special {
+                (1.5, gdk::RGBA::new(1.0, 0.75, 0.35, 0.7))
             } else {
                 (1.0, gdk::RGBA::new(1.0, 1.0, 1.0, 0.18))
             };
@@ -184,6 +187,15 @@ impl WorkspacePreview {
 
     pub fn ws_id(&self) -> i32 {
         self.imp().model.borrow().as_ref().map(|m| m.id).unwrap_or(0)
+    }
+
+    pub fn ws_name(&self) -> String {
+        self.imp()
+            .model
+            .borrow()
+            .as_ref()
+            .map(|m| m.name.clone())
+            .unwrap_or_default()
     }
 
     pub fn set_ring_focused(&self, focused: bool) {

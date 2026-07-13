@@ -94,7 +94,7 @@ impl Overlay {
 
         // Re-apply already-delivered textures to the fresh previews.
         let textures = self.textures.borrow();
-        for preview in self.ring.previews() {
+        for preview in self.ring.all_previews() {
             for addr in preview.window_addrs() {
                 if let Some((texture, y_invert)) = textures.get(&addr) {
                     preview.set_texture(addr, texture.clone(), *y_invert);
@@ -103,13 +103,15 @@ impl Overlay {
         }
         drop(textures);
 
-        // Click a preview: switch to that workspace and close.
-        for preview in self.ring.previews() {
+        // Click a preview: switch to that workspace (or toggle the special)
+        // and close.
+        for preview in self.ring.all_previews() {
             let gesture = gtk::GestureClick::new();
             let win = self.window.clone();
             let ws_id = preview.ws_id();
+            let ws_name = preview.ws_name();
             gesture.connect_released(move |_, _, _, _| {
-                switch_and_close(&win, ws_id);
+                switch_and_close(&win, ws_id, &ws_name);
             });
             preview.add_controller(gesture);
         }
@@ -128,7 +130,7 @@ impl Overlay {
         self.textures
             .borrow_mut()
             .insert(addr, (texture.clone(), y_invert));
-        for preview in self.ring.previews() {
+        for preview in self.ring.all_previews() {
             if preview.set_texture(addr, texture.clone(), y_invert) {
                 break;
             }
@@ -162,6 +164,7 @@ fn all_addrs(snapshot: &Snapshot) -> Vec<u64> {
     snapshot
         .workspaces
         .iter()
+        .chain(snapshot.specials.iter())
         .flat_map(|w| w.windows.iter().map(|win| win.addr))
         .collect()
 }
@@ -246,7 +249,7 @@ fn wire_input(overlay: &Rc<Overlay>) {
                 gdk::Key::Right | gdk::Key::Down | gdk::Key::l | gdk::Key::j => ring.rotate(1),
                 gdk::Key::Return | gdk::Key::KP_Enter | gdk::Key::space => {
                     if let Some(id) = ring.focused_ws_id() {
-                        switch_and_close(&win, id);
+                        switch_and_close(&win, id, "");
                     }
                 }
                 _ => return glib::Propagation::Proceed,
@@ -274,8 +277,13 @@ fn wire_input(overlay: &Rc<Overlay>) {
     window.add_controller(scroll);
 }
 
-fn switch_and_close(window: &gtk::ApplicationWindow, ws_id: i32) {
-    if let Err(e) = ipc::switch_workspace(ws_id) {
+fn switch_and_close(window: &gtk::ApplicationWindow, ws_id: i32, ws_name: &str) {
+    let result = if ws_id < 0 {
+        ipc::toggle_special(ws_name)
+    } else {
+        ipc::switch_workspace(ws_id)
+    };
+    if let Err(e) = result {
         eprintln!("hyprPanopticon: workspace dispatch failed: {e:#}");
     }
     window.close();

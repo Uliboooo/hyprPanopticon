@@ -27,6 +27,8 @@ mod imp {
     #[derive(Default)]
     pub struct RingView {
         pub previews: RefCell<Vec<WorkspacePreview>>,
+        /// Special-workspace previews, shown as a column outside the ring.
+        pub special_previews: RefCell<Vec<WorkspacePreview>>,
         pub focus_idx: Cell<usize>,
         /// Continuous focus position driven by the animation.
         pub focus_pos: Cell<f64>,
@@ -99,6 +101,30 @@ mod imp {
                 );
                 preview.size_allocate(&alloc, -1);
             }
+            drop(previews);
+
+            // Specials: a vertically centered column on the left edge,
+            // outside the ring, at the minimum ring scale.
+            let specials = self.special_previews.borrow();
+            if !specials.is_empty() {
+                let params = self.params.borrow();
+                let w_f = (params.focus_width_frac * width as f64).max(64.0);
+                let h_f = w_f / self.aspect.get().max(0.1);
+                let (sw, sh) = (w_f * params.s_min, h_f * params.s_min);
+                let gap = 16.0;
+                let total = specials.len() as f64 * (sh + gap) - gap;
+                let mut y = (height as f64 - total) / 2.0;
+                for preview in specials.iter() {
+                    let alloc = gtk::Allocation::new(
+                        params.margin.round() as i32,
+                        y.round() as i32,
+                        (sw.round() as i32).max(1),
+                        (sh.round() as i32).max(1),
+                    );
+                    preview.size_allocate(&alloc, -1);
+                    y += sh + gap;
+                }
+            }
         }
     }
 }
@@ -127,6 +153,9 @@ impl RingView {
         for old in imp.previews.borrow_mut().drain(..) {
             old.unparent();
         }
+        for old in imp.special_previews.borrow_mut().drain(..) {
+            old.unparent();
+        }
         let viewport = (snapshot.monitor.w, snapshot.monitor.h);
         imp.aspect.set(snapshot.monitor.w / snapshot.monitor.h.max(1.0));
 
@@ -136,6 +165,14 @@ impl RingView {
             preview.set_parent(self);
             previews.push(preview);
         }
+        let mut special_previews = Vec::with_capacity(snapshot.specials.len());
+        for ws in &snapshot.specials {
+            let preview = WorkspacePreview::new(ws.clone(), viewport);
+            preview.set_parent(self);
+            special_previews.push(preview);
+        }
+        *imp.special_previews.borrow_mut() = special_previews;
+
         let focus = prev_focus_ws
             .and_then(|id| snapshot.workspaces.iter().position(|w| w.id == id))
             .or_else(|| {
@@ -156,6 +193,13 @@ impl RingView {
 
     pub fn previews(&self) -> Vec<WorkspacePreview> {
         self.imp().previews.borrow().clone()
+    }
+
+    /// Ring previews plus special-workspace previews.
+    pub fn all_previews(&self) -> Vec<WorkspacePreview> {
+        let mut all = self.imp().previews.borrow().clone();
+        all.extend(self.imp().special_previews.borrow().iter().cloned());
+        all
     }
 
     pub fn focused_ws_id(&self) -> Option<i32> {

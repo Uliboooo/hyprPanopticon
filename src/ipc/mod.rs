@@ -33,6 +33,21 @@ pub fn switch_workspace(id: i32) -> anyhow::Result<()> {
     anyhow::bail!("workspace dispatch rejected: {}", lua.trim())
 }
 
+/// Toggle a special workspace by its short name (without "special:").
+pub fn toggle_special(name: &str) -> anyhow::Result<()> {
+    let classic = send_command(&format!("dispatch togglespecialworkspace {name}"))?;
+    if classic.trim() == "ok" {
+        return Ok(());
+    }
+    let lua = send_command(&format!(
+        "dispatch hl.dsp.workspace.toggle_special(\"{name}\")"
+    ))?;
+    if lua.trim() == "ok" {
+        return Ok(());
+    }
+    anyhow::bail!("special workspace dispatch rejected: {}", lua.trim())
+}
+
 /// Parse a Hyprland window address ("0x5693…") into its numeric form.
 pub fn parse_address(s: &str) -> Option<u64> {
     let hex = s.strip_prefix("0x").unwrap_or(s);

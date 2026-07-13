@@ -28,18 +28,31 @@ pub fn take() -> Result<Snapshot> {
         scale,
     };
 
-    let mut ws_models: Vec<WorkspaceModel> = workspaces
-        .into_iter()
-        .filter(|w| w.id > 0 && w.monitor == monitor.name)
-        .map(|w| WorkspaceModel { id: w.id, name: w.name, windows: Vec::new() })
-        .collect();
+    let mut ws_models: Vec<WorkspaceModel> = Vec::new();
+    let mut special_models: Vec<WorkspaceModel> = Vec::new();
+    for w in workspaces {
+        if w.monitor != monitor.name {
+            continue;
+        }
+        if w.id > 0 {
+            ws_models.push(WorkspaceModel { id: w.id, name: w.name, windows: Vec::new() });
+        } else if w.id < 0 {
+            let name = w.name.strip_prefix("special:").unwrap_or(&w.name).to_string();
+            special_models.push(WorkspaceModel { id: w.id, name, windows: Vec::new() });
+        }
+    }
     ws_models.sort_by_key(|w| w.id);
+    special_models.sort_by_key(|w| w.id);
 
     for c in clients {
         if !c.mapped {
             continue;
         }
-        let Some(ws) = ws_models.iter_mut().find(|w| w.id == c.workspace.id) else {
+        let Some(ws) = ws_models
+            .iter_mut()
+            .chain(special_models.iter_mut())
+            .find(|w| w.id == c.workspace.id)
+        else {
             continue;
         };
         let Some(addr) = parse_address(&c.address.to_string()) else {
@@ -62,7 +75,7 @@ pub fn take() -> Result<Snapshot> {
     }
 
     // Draw least-recently-focused first so the most recent window ends up on top.
-    for ws in &mut ws_models {
+    for ws in ws_models.iter_mut().chain(special_models.iter_mut()) {
         ws.windows.sort_by_key(|w| std::cmp::Reverse(w.focus_order));
     }
 
@@ -71,5 +84,6 @@ pub fn take() -> Result<Snapshot> {
         monitor_name: monitor.name.clone(),
         active_workspace: monitor.active_workspace.id,
         workspaces: ws_models,
+        specials: special_models,
     })
 }
