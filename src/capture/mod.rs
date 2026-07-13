@@ -37,10 +37,25 @@ pub fn spawn() -> anyhow::Result<(CaptureHandle, async_channel::Receiver<Capture
     let (req_tx, req_rx) = std::sync::mpsc::channel::<u64>();
     let (res_tx, res_rx) = async_channel::unbounded::<CaptureResult>();
 
-    let mut engine = engine::Engine::new()?;
     std::thread::Builder::new()
         .name("capture-worker".into())
         .spawn(move || {
+            // Connecting and binding globals takes Wayland round trips; do it
+            // here so overlay construction never waits on it.
+            let mut engine = match engine::Engine::new() {
+                Ok(engine) => engine,
+                Err(e) => {
+                    eprintln!("hyprPanopticon: live thumbnails disabled: {e:#}");
+                    // Keep answering so the caller's pending-capture
+                    // accounting stays balanced.
+                    while let Ok(addr) = req_rx.recv() {
+                        if res_tx.send_blocking(CaptureResult { addr, frame: None }).is_err() {
+                            break;
+                        }
+                    }
+                    return;
+                }
+            };
             while let Ok(addr) = req_rx.recv() {
                 let frame = match engine.capture(addr) {
                     Ok(frame) => Some(frame),

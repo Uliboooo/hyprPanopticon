@@ -12,8 +12,8 @@ use gtk::prelude::*;
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
 use crate::capture::{self, CaptureHandle};
+use crate::config::Config;
 use crate::ipc;
-use crate::layout::RingParams;
 use crate::model::Snapshot;
 use crate::ui::ring::RingView;
 
@@ -23,6 +23,8 @@ const RECAPTURE_INTERVAL_MS: u64 = 150;
 struct Overlay {
     window: gtk::ApplicationWindow,
     ring: RingView,
+    /// Restrict refreshed snapshots to the focused monitor's workspaces.
+    per_monitor: bool,
     capture: Option<CaptureHandle>,
     /// Captures requested but not yet answered; used as backpressure so the
     /// periodic refresh never outruns the sequential capture worker.
@@ -34,7 +36,7 @@ struct Overlay {
 pub fn build(
     app: &gtk::Application,
     snapshot: &Snapshot,
-    params: RingParams,
+    config: Config,
 ) -> gtk::ApplicationWindow {
     let window = gtk::ApplicationWindow::new(app);
     window.init_layer_shell();
@@ -54,7 +56,7 @@ pub fn build(
     window.add_css_class("panopticon");
 
     let ring = RingView::default();
-    ring.set_params(params);
+    ring.set_params(config.ring);
     window.set_child(Some(&ring));
 
     // Capture worker; on failure previews stay schematic.
@@ -69,6 +71,7 @@ pub fn build(
     let overlay = Rc::new(Overlay {
         window: window.clone(),
         ring: ring.clone(),
+        per_monitor: config.per_monitor_workspaces,
         capture: capture_worker.as_ref().map(|(handle, _)| handle.clone()),
         pending: Cell::new(0),
         textures: RefCell::new(HashMap::new()),
@@ -144,7 +147,7 @@ impl Overlay {
     }
 
     fn refresh(&self) {
-        match ipc::snapshot::take() {
+        match ipc::snapshot::take(self.per_monitor) {
             Ok(snapshot) => {
                 // Drop textures of windows that no longer exist.
                 let alive: HashSet<u64> = all_addrs(&snapshot).into_iter().collect();

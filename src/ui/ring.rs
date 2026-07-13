@@ -172,18 +172,19 @@ impl RingView {
         for old in imp.special_previews.borrow_mut().drain(..) {
             old.unparent();
         }
-        let viewport = (snapshot.monitor.w, snapshot.monitor.h);
         imp.aspect.set(snapshot.monitor.w / snapshot.monitor.h.max(1.0));
 
         let mut previews = Vec::with_capacity(snapshot.workspaces.len());
         for ws in &snapshot.workspaces {
-            let preview = WorkspacePreview::new(ws.clone(), viewport);
+            // Each preview clips against its own monitor's viewport so
+            // workspaces from other monitors render correctly.
+            let preview = WorkspacePreview::new(ws.clone(), ws.viewport);
             preview.set_parent(self);
             previews.push(preview);
         }
         let mut special_previews = Vec::with_capacity(snapshot.specials.len());
         for (i, ws) in snapshot.specials.iter().enumerate() {
-            let preview = WorkspacePreview::new(ws.clone(), viewport);
+            let preview = WorkspacePreview::new(ws.clone(), ws.viewport);
             preview.set_parent(self);
             preview.set_special_index(i + 1);
             special_previews.push(preview);

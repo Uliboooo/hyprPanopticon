@@ -49,6 +49,9 @@ pub struct WorkspaceModel {
     pub id: i32,
     pub name: String,
     pub windows: Vec<WindowThumb>,
+    /// Logical size of the monitor this workspace lives on; window rects are
+    /// relative to that monitor and the preview clips against this viewport.
+    pub viewport: (f64, f64),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -66,10 +69,11 @@ pub struct MonitorModel {
 pub struct Snapshot {
     pub monitor: MonitorModel,
     pub monitor_name: String,
-    /// Normal workspaces on the focused monitor, sorted by id.
+    /// Normal workspaces sorted by id — every monitor's by default, only the
+    /// focused monitor's when `per_monitor_workspaces` is set.
     pub workspaces: Vec<WorkspaceModel>,
-    /// Special workspaces (negative ids) on the focused monitor; shown
-    /// outside the ring. Their `name` is stripped of the "special:" prefix.
+    /// Special workspaces (negative ids); shown outside the ring. Their
+    /// `name` is stripped of the "special:" prefix.
     pub specials: Vec<WorkspaceModel>,
     /// Currently active workspace id (initial ring focus).
     pub active_workspace: i32,

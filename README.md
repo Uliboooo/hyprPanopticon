@@ -122,6 +122,9 @@ spread = 0.7
 # 0.4): 0 keeps everything on one circle (hollow middle), higher fills the
 # center while the top and bottom previews stay put.
 center_pull = 0.4
+# Show only the focused monitor's workspaces (default false: the ring shows
+# every monitor's workspaces).
+per_monitor_workspaces = false
 ```
 
 ## Building from source

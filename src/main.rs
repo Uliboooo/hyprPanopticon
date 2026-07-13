@@ -52,13 +52,26 @@ fn main() -> glib::ExitCode {
         };
     }
 
+    // Query Hyprland while GTK starts up; the IPC round trips and GTK/Wayland
+    // init otherwise serialize and both sit on the path to the first frame.
+    let config = config::load();
+    let per_monitor = config.per_monitor_workspaces;
+    let early_snapshot = std::cell::RefCell::new(Some(std::thread::spawn(move || {
+        ipc::snapshot::take(per_monitor)
+    })));
+
     let app = gtk::Application::builder()
         .application_id("dev.seli.hyprPanopticon")
         .flags(gio::ApplicationFlags::NON_UNIQUE)
         .build();
 
-    app.connect_activate(|app| {
-        let snapshot = match ipc::snapshot::take() {
+    app.connect_activate(move |app| {
+        let result = early_snapshot
+            .borrow_mut()
+            .take()
+            .and_then(|handle| handle.join().ok())
+            .unwrap_or_else(|| ipc::snapshot::take(per_monitor));
+        let snapshot = match result {
             Ok(s) => s,
             Err(e) => {
                 eprintln!("hyprPanopticon: failed to query Hyprland: {e:#}");
@@ -67,11 +80,11 @@ fn main() -> glib::ExitCode {
             }
         };
         if snapshot.workspaces.is_empty() {
-            eprintln!("hyprPanopticon: no workspaces on the focused monitor");
+            eprintln!("hyprPanopticon: no workspaces to show");
             app.quit();
             return;
         }
-        let window = ui::overlay::build(app, &snapshot, config::load());
+        let window = ui::overlay::build(app, &snapshot, config);
         window.present();
     });
 

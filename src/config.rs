@@ -7,6 +7,13 @@ use serde::Deserialize;
 
 use crate::layout::RingParams;
 
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Config {
+    pub ring: RingParams,
+    /// Show only the focused monitor's workspaces instead of every monitor's.
+    pub per_monitor_workspaces: bool,
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 struct FileConfig {
@@ -24,6 +31,8 @@ struct FileConfig {
     /// Pull small side previews horizontally toward the center (0.0..=1.0):
     /// 0 = all on one circle (hollow middle), higher = center filled.
     center_pull: Option<f64>,
+    /// true = only the focused monitor's workspaces; false (default) = all.
+    per_monitor_workspaces: Option<bool>,
 }
 
 fn config_path() -> Option<std::path::PathBuf> {
@@ -33,35 +42,39 @@ fn config_path() -> Option<std::path::PathBuf> {
     Some(base.join("hyprpanopticon/config.toml"))
 }
 
-pub fn load() -> RingParams {
-    let mut params = RingParams::default();
-    let Some(path) = config_path() else { return params };
-    let Ok(text) = std::fs::read_to_string(&path) else { return params };
+pub fn load() -> Config {
+    let mut config = Config::default();
+    let Some(path) = config_path() else { return config };
+    let Ok(text) = std::fs::read_to_string(&path) else { return config };
     match toml::from_str::<FileConfig>(&text) {
-        Ok(config) => apply(&mut params, &config),
+        Ok(file) => apply(&mut config, &file),
         Err(e) => eprintln!("hyprPanopticon: ignoring bad {}: {e}", path.display()),
     }
-    params
+    config
 }
 
-fn apply(params: &mut RingParams, config: &FileConfig) {
-    if let Some(v) = config.min_scale {
+fn apply(config: &mut Config, file: &FileConfig) {
+    let params = &mut config.ring;
+    if let Some(v) = file.min_scale {
         params.s_min = v.clamp(0.05, 1.0);
     }
-    if let Some(v) = config.falloff {
+    if let Some(v) = file.falloff {
         params.falloff = v.clamp(0.1, 10.0);
     }
-    if let Some(v) = config.focus_width {
+    if let Some(v) = file.focus_width {
         params.focus_width_frac = v.clamp(0.1, 0.8);
     }
-    if let Some(v) = config.margin {
+    if let Some(v) = file.margin {
         params.margin = v.clamp(0.0, 200.0);
     }
-    if let Some(v) = config.spread {
+    if let Some(v) = file.spread {
         params.spread = v.clamp(0.0, 1.0);
     }
-    if let Some(v) = config.center_pull {
+    if let Some(v) = file.center_pull {
         params.center_pull = v.clamp(0.0, 1.0);
+    }
+    if let Some(v) = file.per_monitor_workspaces {
+        config.per_monitor_workspaces = v;
     }
 }
 
@@ -71,15 +84,25 @@ mod tests {
 
     #[test]
     fn parses_and_clamps() {
-        let config: FileConfig =
+        let file: FileConfig =
             toml::from_str("min_scale = 0.5\nspread = 3.0\nfalloff = 1.5").unwrap();
-        let mut params = RingParams::default();
-        apply(&mut params, &config);
-        assert_eq!(params.s_min, 0.5);
-        assert_eq!(params.spread, 1.0); // clamped
-        assert_eq!(params.falloff, 1.5);
+        let mut config = Config::default();
+        apply(&mut config, &file);
+        assert_eq!(config.ring.s_min, 0.5);
+        assert_eq!(config.ring.spread, 1.0); // clamped
+        assert_eq!(config.ring.falloff, 1.5);
         // untouched keys keep defaults
-        assert_eq!(params.margin, RingParams::default().margin);
+        assert_eq!(config.ring.margin, RingParams::default().margin);
+        assert!(!config.per_monitor_workspaces);
+    }
+
+    #[test]
+    fn per_monitor_workspaces_defaults_off_and_parses() {
+        let mut config = Config::default();
+        apply(&mut config, &toml::from_str("").unwrap());
+        assert!(!config.per_monitor_workspaces);
+        apply(&mut config, &toml::from_str("per_monitor_workspaces = true").unwrap());
+        assert!(config.per_monitor_workspaces);
     }
 
     #[test]
