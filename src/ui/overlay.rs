@@ -252,7 +252,17 @@ fn wire_input(overlay: &Rc<Overlay>) {
                         switch_and_close(&win, id, "");
                     }
                 }
-                _ => return glib::Propagation::Proceed,
+                // Digit keys (main row and keypad) toggle the numbered
+                // special workspace.
+                key => {
+                    let digit = key.to_unicode().and_then(|c| c.to_digit(10));
+                    match digit.and_then(|d| ring.special_at(d as usize)) {
+                        Some(preview) => {
+                            switch_and_close(&win, preview.ws_id(), &preview.ws_name())
+                        }
+                        None => return glib::Propagation::Proceed,
+                    }
+                }
             }
             glib::Propagation::Stop
         });

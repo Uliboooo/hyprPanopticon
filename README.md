@@ -24,9 +24,11 @@ covers the focused monitor.
 | mouse wheel | rotate focus |
 | `Enter` / `Space` | switch to the focused workspace and close |
 | click a preview | switch to that workspace and close |
+| `1`–`9` | toggle the numbered special workspace |
 | `Esc` / `q` | close without switching |
 
-Special workspaces (scratchpads) are not shown. Windows that extend beyond the
+Special workspaces (scratchpads) are shown as a numbered column outside the
+ring on the left edge; click one or press its number to toggle it. Windows that extend beyond the
 monitor viewport (e.g. with a scrolling layout) are clipped to what the
 monitor would show.
 

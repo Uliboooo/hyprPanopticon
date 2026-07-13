@@ -166,9 +166,10 @@ impl RingView {
             previews.push(preview);
         }
         let mut special_previews = Vec::with_capacity(snapshot.specials.len());
-        for ws in &snapshot.specials {
+        for (i, ws) in snapshot.specials.iter().enumerate() {
             let preview = WorkspacePreview::new(ws.clone(), viewport);
             preview.set_parent(self);
+            preview.set_special_index(i + 1);
             special_previews.push(preview);
         }
         *imp.special_previews.borrow_mut() = special_previews;
@@ -193,6 +194,15 @@ impl RingView {
 
     pub fn previews(&self) -> Vec<WorkspacePreview> {
         self.imp().previews.borrow().clone()
+    }
+
+    /// The n-th (1-based) special-workspace preview, matching its badge number.
+    pub fn special_at(&self, number: usize) -> Option<WorkspacePreview> {
+        self.imp()
+            .special_previews
+            .borrow()
+            .get(number.checked_sub(1)?)
+            .cloned()
     }
 
     /// Ring previews plus special-workspace previews.

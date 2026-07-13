@@ -23,6 +23,8 @@ mod imp {
         /// Monitor viewport size in logical px; window rects are clipped to it.
         pub viewport: Cell<(f64, f64)>,
         pub ring_focused: Cell<bool>,
+        /// 1-based hotkey number shown in the badge of special previews.
+        pub special_index: Cell<Option<usize>>,
     }
 
     #[glib::object_subclass]
@@ -82,7 +84,11 @@ mod imp {
 
             // Workspace name badge, bottom-center.
             if let Some(model) = self.model.borrow().as_ref() {
-                let layout = widget.create_pango_layout(Some(&model.name));
+                let text = match self.special_index.get() {
+                    Some(i) => format!("{i}: {}", model.name),
+                    None => model.name.clone(),
+                };
+                let layout = widget.create_pango_layout(Some(&text));
                 let (tw, th) = layout.pixel_size();
                 snapshot.save();
                 snapshot.translate(&graphene::Point::new(
@@ -196,6 +202,11 @@ impl WorkspacePreview {
             .as_ref()
             .map(|m| m.name.clone())
             .unwrap_or_default()
+    }
+
+    pub fn set_special_index(&self, index: usize) {
+        self.imp().special_index.set(Some(index));
+        self.queue_draw();
     }
 
     pub fn set_ring_focused(&self, focused: bool) {
