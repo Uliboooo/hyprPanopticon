@@ -84,12 +84,23 @@ mod imp {
             if n == 0 {
                 return;
             }
+            // Reserve the left strip for the special column when present.
+            let left_inset = {
+                let params = self.params.borrow();
+                if self.special_previews.borrow().is_empty() {
+                    0.0
+                } else {
+                    let w_f = (params.focus_width_frac * width as f64).max(64.0);
+                    params.margin + w_f * params.s_min + 16.0
+                }
+            };
             let placements = layout::compute(
                 n,
                 self.focus_pos.get(),
                 width as f64,
                 height as f64,
                 self.aspect.get().max(0.1),
+                left_inset,
                 &self.params.borrow(),
             );
             for (preview, pl) in previews.iter().zip(placements.iter()) {
@@ -306,6 +317,7 @@ impl RingView {
             1000.0,
             1000.0,
             1.0,
+            0.0,
             &imp.params.borrow(),
         );
         let mut order: Vec<usize> = (0..n).collect();

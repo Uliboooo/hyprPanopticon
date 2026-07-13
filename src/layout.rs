@@ -54,12 +54,15 @@ fn wrap_to_pi(mut a: f64) -> f64 {
 /// area. `focus_pos` is the (possibly mid-animation, fractional) index of the
 /// focused preview; the focused preview sits at the top of the circle.
 /// `aspect` is the monitor aspect ratio (width / height) used for preview shape.
+/// `left_inset` reserves space from the left edge (e.g. for the special-
+/// workspace column); previews on the left half of the circle stay clear of it.
 pub fn compute(
     n: usize,
     focus_pos: f64,
     screen_w: f64,
     screen_h: f64,
     aspect: f64,
+    left_inset: f64,
     p: &RingParams,
 ) -> Vec<Placement> {
     if n == 0 {
@@ -83,14 +86,45 @@ pub fn compute(
         }];
     }
 
-    let radius = ((screen_w.min(screen_h)) / 2.0 - w_f.max(h_f) / 2.0 - p.margin).max(0.0);
-
-    (0..n)
+    // Angle and scale per preview. Scale depends only on the angular distance
+    // to the focus, so the (angle, scale) pairing — and therefore the radius
+    // below — is stable while the ring rotates.
+    let items: Vec<(f64, f64)> = (0..n)
         .map(|i| {
             let theta = -PI / 2.0 + (i as f64 - focus_pos) * 2.0 * PI / n as f64;
             let delta = wrap_to_pi(theta + PI / 2.0);
             let t = ((1.0 + delta.cos()) / 2.0).powf(p.falloff);
-            let scale = p.s_min + (p.s_max - p.s_min) * t;
+            (theta, p.s_min + (p.s_max - p.s_min) * t)
+        })
+        .collect();
+
+    // Largest radius at which every preview still fits on screen (and clear
+    // of the reserved left strip), given its own size at its own angle.
+    let left_reserved = left_inset.max(p.margin);
+    let mut radius = f64::INFINITY;
+    for &(theta, scale) in &items {
+        let (w, h) = (w_f * scale, h_f * scale);
+        let (cos, sin) = (theta.cos(), theta.sin());
+        let avail_x = if cos < 0.0 {
+            cx - left_reserved - w / 2.0
+        } else {
+            cx - p.margin - w / 2.0
+        };
+        let avail_y = screen_h / 2.0 - p.margin - h / 2.0;
+        if cos.abs() > 1e-6 {
+            radius = radius.min(avail_x.max(0.0) / cos.abs());
+        }
+        if sin.abs() > 1e-6 {
+            radius = radius.min(avail_y.max(0.0) / sin.abs());
+        }
+    }
+    if !radius.is_finite() {
+        radius = 0.0;
+    }
+
+    items
+        .into_iter()
+        .map(|(theta, scale)| {
             let w = w_f * scale;
             let h = h_f * scale;
             Placement {
@@ -130,7 +164,7 @@ mod tests {
     #[test]
     fn focused_is_largest_and_on_top() {
         let p = RingParams::default();
-        let places = compute(6, 2.0, W, H, ASPECT, &p);
+        let places = compute(6, 2.0, W, H, ASPECT, 0.0, &p);
         let focused = &places[2];
         for (i, pl) in places.iter().enumerate() {
             if i != 2 {
@@ -149,7 +183,7 @@ mod tests {
         let p = RingParams::default();
         for n in 1..=10 {
             for f in 0..n {
-                for pl in compute(n, f as f64, W, H, ASPECT, &p) {
+                for pl in compute(n, f as f64, W, H, ASPECT, 0.0, &p) {
                     assert!(pl.x >= 0.0 && pl.y >= 0.0, "n={n} f={f} {pl:?}");
                     assert!(pl.x + pl.width <= W, "n={n} f={f} {pl:?}");
                     assert!(pl.y + pl.height <= H, "n={n} f={f} {pl:?}");
@@ -159,9 +193,42 @@ mod tests {
     }
 
     #[test]
+    fn respects_left_inset() {
+        let p = RingParams::default();
+        let inset = 280.0;
+        for n in 2..=10 {
+            for f in 0..n {
+                for pl in compute(n, f as f64, W, H, ASPECT, inset, &p) {
+                    // Only previews on the left half are constrained by the
+                    // inset; the focused one sits at the top center.
+                    assert!(pl.x >= 0.0, "n={n} f={f} {pl:?}");
+                    let center_x = pl.x + pl.width / 2.0;
+                    if center_x < W / 2.0 - 1.0 {
+                        assert!(pl.x >= inset - 1e-6, "n={n} f={f} {pl:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn radius_grows_versus_worst_case() {
+        // The per-angle fitting must beat the old worst-case radius so the
+        // ring actually spreads out.
+        let p = RingParams::default();
+        let places = compute(8, 0.0, W, H, ASPECT, 0.0, &p);
+        let w_f = p.focus_width_frac * W;
+        let old_radius = H.min(W) / 2.0 - w_f.max(w_f / ASPECT) / 2.0 - p.margin;
+        // Bottom-most preview center distance from screen center.
+        let bottom = &places[4];
+        let dist = (bottom.y + bottom.height / 2.0 - H / 2.0).abs();
+        assert!(dist > old_radius + 50.0, "radius did not grow: {dist} vs {old_radius}");
+    }
+
+    #[test]
     fn single_workspace_is_centered() {
         let p = RingParams::default();
-        let places = compute(1, 0.0, W, H, ASPECT, &p);
+        let places = compute(1, 0.0, W, H, ASPECT, 0.0, &p);
         assert_eq!(places.len(), 1);
         let pl = &places[0];
         assert!((pl.x + pl.width / 2.0 - W / 2.0).abs() < 1e-6);
@@ -171,7 +238,7 @@ mod tests {
     #[test]
     fn opposite_preview_has_min_scale() {
         let p = RingParams::default();
-        let places = compute(4, 0.0, W, H, ASPECT, &p);
+        let places = compute(4, 0.0, W, H, ASPECT, 0.0, &p);
         assert!((places[0].scale - p.s_max).abs() < 1e-9);
         assert!((places[2].scale - p.s_min).abs() < 1e-9);
     }
