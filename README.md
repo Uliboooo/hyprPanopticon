@@ -49,6 +49,26 @@ layerrule = blur, hyprPanopticon
 layerrule = ignorealpha 0.2, hyprPanopticon
 ```
 
+## Configuration
+
+Optional, at `~/.config/hyprpanopticon/config.toml`. All keys are optional;
+out-of-range values are clamped:
+
+```toml
+# Scale of the preview opposite the focus (0.05..1.0, default 0.35).
+min_scale = 0.35
+# How fast previews shrink away from the focus (0.1..10, default 2.0).
+falloff = 2.0
+# Focused preview width as a fraction of the screen (0.1..0.8, default 0.34).
+focus_width = 0.34
+# Screen-edge margin in px (0..200, default 24).
+margin = 24
+# Angular density (0..1, default 0.7): 0 spaces previews evenly around the
+# circle; higher values give the top more room and pack the small previews
+# together at the bottom.
+spread = 0.7
+```
+
 ## Building from source
 
 ```sh

@@ -13,6 +13,7 @@ use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
 use crate::capture::{self, CaptureHandle};
 use crate::ipc;
+use crate::layout::RingParams;
 use crate::model::Snapshot;
 use crate::ui::ring::RingView;
 
@@ -30,7 +31,11 @@ struct Overlay {
     textures: RefCell<HashMap<u64, (gdk::Texture, bool)>>,
 }
 
-pub fn build(app: &gtk::Application, snapshot: &Snapshot) -> gtk::ApplicationWindow {
+pub fn build(
+    app: &gtk::Application,
+    snapshot: &Snapshot,
+    params: RingParams,
+) -> gtk::ApplicationWindow {
     let window = gtk::ApplicationWindow::new(app);
     window.init_layer_shell();
     window.set_layer(Layer::Overlay);
@@ -49,6 +54,7 @@ pub fn build(app: &gtk::Application, snapshot: &Snapshot) -> gtk::ApplicationWin
     window.add_css_class("panopticon");
 
     let ring = RingView::default();
+    ring.set_params(params);
     window.set_child(Some(&ring));
 
     // Capture worker; on failure previews stay schematic.

@@ -1,4 +1,5 @@
 mod capture;
+mod config;
 mod ipc;
 mod layout;
 mod model;
@@ -70,7 +71,7 @@ fn main() -> glib::ExitCode {
             app.quit();
             return;
         }
-        let window = ui::overlay::build(app, &snapshot);
+        let window = ui::overlay::build(app, &snapshot, config::load());
         window.present();
     });
 

@@ -153,6 +153,11 @@ impl Default for RingView {
 }
 
 impl RingView {
+    pub fn set_params(&self, params: RingParams) {
+        *self.imp().params.borrow_mut() = params;
+        self.queue_allocate();
+    }
+
     pub fn set_snapshot(&self, snapshot: &Snapshot) {
         let imp = self.imp();
         // Keep the user's ring focus across live refreshes when possible.

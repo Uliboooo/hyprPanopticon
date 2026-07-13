@@ -14,6 +14,10 @@ pub struct RingParams {
     pub focus_width_frac: f64,
     /// Margin kept between previews and the screen edge, in px.
     pub margin: f64,
+    /// Non-uniform angular spacing, 0..=1. 0 spaces previews evenly around
+    /// the circle; higher values give the large previews near the focus more
+    /// room and pack the small ones together at the bottom.
+    pub spread: f64,
 }
 
 impl Default for RingParams {
@@ -24,6 +28,7 @@ impl Default for RingParams {
             falloff: 2.0,
             focus_width_frac: 0.34,
             margin: 24.0,
+            spread: 0.7,
         }
     }
 }
@@ -37,17 +42,6 @@ pub struct Placement {
     pub height: f64,
     /// Scale relative to the focused preview; also usable as z-order key.
     pub scale: f64,
-}
-
-/// Wrap an angle to (-PI, PI].
-fn wrap_to_pi(mut a: f64) -> f64 {
-    while a <= -PI {
-        a += 2.0 * PI;
-    }
-    while a > PI {
-        a -= 2.0 * PI;
-    }
-    a
 }
 
 /// Compute placements for `n` previews on a circle inside a `screen_w` x `screen_h`
@@ -86,13 +80,19 @@ pub fn compute(
         }];
     }
 
-    // Angle and scale per preview. Scale depends only on the angular distance
-    // to the focus, so the (angle, scale) pairing — and therefore the radius
-    // below — is stable while the ring rotates.
+    // Angle and scale per preview. `u` is the ring-position offset from the
+    // focus in [-0.5, 0.5). Scale falls off with |u|; the angle warps by
+    // `spread` so large previews near the focus get more angular room while
+    // small ones bunch up at the bottom. Both depend only on u, so the
+    // (angle, scale) pairing — and therefore the radius below — is stable
+    // while the ring rotates.
+    let spread = p.spread.clamp(0.0, 1.0);
     let items: Vec<(f64, f64)> = (0..n)
         .map(|i| {
-            let theta = -PI / 2.0 + (i as f64 - focus_pos) * 2.0 * PI / n as f64;
-            let delta = wrap_to_pi(theta + PI / 2.0);
+            let mut u = (i as f64 - focus_pos) / n as f64;
+            u -= u.round(); // wrap to [-0.5, 0.5]
+            let delta = 2.0 * PI * u;
+            let theta = -PI / 2.0 + delta + spread * delta.sin();
             let t = ((1.0 + delta.cos()) / 2.0).powf(p.falloff);
             (theta, p.s_min + (p.s_max - p.s_min) * t)
         })
