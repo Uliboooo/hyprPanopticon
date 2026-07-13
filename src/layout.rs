@@ -28,12 +28,12 @@ impl Default for RingParams {
     fn default() -> Self {
         Self {
             s_max: 1.0,
-            s_min: 0.45,
-            falloff: 2.0,
-            focus_width_frac: 0.34,
+            s_min: 0.6,
+            falloff: 1.2,
+            focus_width_frac: 0.32,
             margin: 24.0,
-            spread: 0.7,
-            center_pull: 0.4,
+            spread: 0.25,
+            center_pull: 0.0,
         }
     }
 }
@@ -114,39 +114,106 @@ pub fn compute(
         1.0 - pull * (1.0 - s_norm)
     };
 
-    // Largest radius at which every preview still fits on screen (and clear
-    // of the reserved left strip), given its own size, angle, and pull.
+    // Fit the ring: `fit` uniformly shrinks every preview until, on the
+    // largest ellipse where everything still stays on screen (and clear of
+    // the reserved left strip), ring-order neighbors keep a visible gap.
+    // The ellipse (rather than a circle) matters on wide screens: a circle
+    // is capped by the screen height, which crowds the diagonal previews
+    // toward the vertical centerline and pinches the middle opening into a
+    // ragged slit. Stretching horizontally keeps the opening a clean oval.
+    // Shrinking also frees screen space (bigger radii), so the two are
+    // coupled; feasibility is monotonic in `fit`, found by bisection.
     let left_reserved = left_inset.max(p.margin);
-    let mut radius = f64::INFINITY;
-    for &(theta, scale) in &items {
-        let (w, h) = (w_f * scale, h_f * scale);
-        let (cos, sin) = (theta.cos(), theta.sin());
-        let k = pull_factor(scale).max(1e-6);
-        let avail_x = if cos < 0.0 {
-            cx - left_reserved - w / 2.0
-        } else {
-            cx - p.margin - w / 2.0
+    // Neighbors may overlap by this fraction of their combined extent;
+    // trading a bit of overlap keeps the previews larger and readable.
+    let overlap_allowance = 0.25;
+
+    let radii_for = |fit: f64| -> (f64, f64) {
+        let mut rx = f64::INFINITY;
+        let mut ry = f64::INFINITY;
+        for &(theta, scale) in &items {
+            let (w, h) = (w_f * fit * scale, h_f * fit * scale);
+            let (cos, sin) = (theta.cos(), theta.sin());
+            let k = pull_factor(scale).max(1e-6);
+            let avail_x = if cos < 0.0 {
+                cx - left_reserved - w / 2.0
+            } else {
+                cx - p.margin - w / 2.0
+            };
+            let avail_y = screen_h / 2.0 - p.margin - h / 2.0;
+            if cos.abs() > 1e-6 {
+                rx = rx.min(avail_x.max(0.0) / (k * cos.abs()));
+            }
+            if sin.abs() > 1e-6 {
+                ry = ry.min(avail_y.max(0.0) / sin.abs());
+            }
+        }
+        // Unconstrained axis (e.g. n = 2 stacked vertically): mirror the
+        // other one. Cap the aspect so the ring still reads as a ring.
+        if !rx.is_finite() {
+            rx = ry;
+        }
+        if !ry.is_finite() {
+            ry = rx;
+        }
+        if !rx.is_finite() {
+            return (0.0, 0.0);
+        }
+        (rx.min(1.8 * ry), ry.min(1.8 * rx))
+    };
+
+    // Neighbor spacing on the ellipse, measured along the axis through both
+    // centers: the center distance versus the sum of both rects' half-extent
+    // projections onto it (their combined footprint), discounted by the
+    // allowed overlap. `theta` is monotonic in ring position, so index
+    // neighbors are the geometric neighbors.
+    let gaps_ok = |fit: f64, (rx, ry): (f64, f64)| -> bool {
+        let center = |theta: f64, scale: f64| {
+            (
+                rx * pull_factor(scale) * theta.cos(),
+                ry * theta.sin(),
+            )
         };
-        let avail_y = screen_h / 2.0 - p.margin - h / 2.0;
-        if cos.abs() > 1e-6 {
-            radius = radius.min(avail_x.max(0.0) / (k * cos.abs()));
+        (0..n).all(|i| {
+            let (t0, s0) = items[i];
+            let (t1, s1) = items[(i + 1) % n];
+            let (x0, y0) = center(t0, s0);
+            let (x1, y1) = center(t1, s1);
+            let dist = ((x1 - x0).powi(2) + (y1 - y0).powi(2)).sqrt();
+            if dist < 1e-6 {
+                return false;
+            }
+            let (dx, dy) = ((x1 - x0).abs() / dist, (y1 - y0).abs() / dist);
+            let half = |s: f64| (w_f * fit * s / 2.0) * dx + (h_f * fit * s / 2.0) * dy;
+            dist >= (half(s0) + half(s1)) * (1.0 - overlap_allowance)
+        })
+    };
+
+    let mut fit = 1.0;
+    if !gaps_ok(1.0, radii_for(1.0)) {
+        // Below the lower bound the previews would be unusably small; accept
+        // a cramped ring instead.
+        let (mut lo, mut hi) = (0.25, 1.0);
+        for _ in 0..24 {
+            let mid = (lo + hi) / 2.0;
+            if gaps_ok(mid, radii_for(mid)) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
         }
-        if sin.abs() > 1e-6 {
-            radius = radius.min(avail_y.max(0.0) / sin.abs());
-        }
+        fit = lo;
     }
-    if !radius.is_finite() {
-        radius = 0.0;
-    }
+    let (rx, ry) = radii_for(fit);
 
     items
         .into_iter()
         .map(|(theta, scale)| {
-            let w = w_f * scale;
-            let h = h_f * scale;
+            let w = w_f * fit * scale;
+            let h = h_f * fit * scale;
             Placement {
-                x: cx + radius * pull_factor(scale) * theta.cos() - w / 2.0,
-                y: cy + radius * theta.sin() - h / 2.0,
+                x: cx + rx * pull_factor(scale) * theta.cos() - w / 2.0,
+                y: cy + ry * theta.sin() - h / 2.0,
                 width: w,
                 height: h,
                 scale,
@@ -257,12 +324,12 @@ mod tests {
             d_pulled < d_flat,
             "pull did not move side previews inward: {d_pulled} vs {d_flat}"
         );
-        // …while the bottom preview keeps its vertical position.
-        let bottom_y = |p: &RingParams| {
-            let places = compute(8, 0.0, W, H, ASPECT, 0.0, p);
-            places[4].y + places[4].height / 2.0
-        };
-        assert!((bottom_y(&flat) - bottom_y(&pulled)).abs() < 1e-6);
+        // …while the bottom preview stays anchored in the lower band (pulling
+        // only affects horizontal positions; the fitted radius may differ
+        // slightly between the two configs).
+        let places = compute(8, 0.0, W, H, ASPECT, 0.0, &pulled);
+        let bottom_y = places[4].y + places[4].height / 2.0;
+        assert!(bottom_y > H * 0.7, "bottom preview drifted up: {bottom_y}");
     }
 
     #[test]
@@ -284,23 +351,35 @@ mod tests {
     }
 
     #[test]
-    fn default_layout_fills_center_and_bottom() {
-        // Regression for the two reported holes: a hollow ring middle, and
-        // (after the first pull attempt) an empty bottom band.
+    fn default_layout_is_an_open_ring() {
+        // The default look is a circle with breathing room: previews sit on
+        // the ring, never pile up in the middle, and keep gaps between them.
         let p = RingParams::default();
-        let places = compute(10, 0.0, W, H, ASPECT, 0.0, &p);
-        // Bottom band is used: some preview reaches the lower part of the screen.
-        let lowest = places
-            .iter()
-            .map(|pl| pl.y + pl.height)
-            .fold(0.0f64, f64::max);
-        assert!(lowest > H * 0.85, "bottom band empty, lowest edge {lowest}");
-        // Center band is used: some preview center lands near the middle.
-        let center_used = places.iter().any(|pl| {
-            let (cx, cy) = (pl.x + pl.width / 2.0, pl.y + pl.height / 2.0);
-            (cx - W / 2.0).abs() < W * 0.17 && (cy - H / 2.0).abs() < H * 0.22
-        });
-        assert!(center_used, "middle of the ring is hollow: {places:#?}");
+        for n in 2..=12 {
+            let places = compute(n, 0.0, W, H, ASPECT, 0.0, &p);
+            // The middle of the ring stays open: no preview center near the
+            // screen center.
+            for pl in &places {
+                let (cx, cy) = (pl.x + pl.width / 2.0, pl.y + pl.height / 2.0);
+                let dist = ((cx - W / 2.0).powi(2) + (cy - H / 2.0).powi(2)).sqrt();
+                assert!(dist > H * 0.2, "n={n}: preview sits in the middle: {pl:?}");
+            }
+            // Moderate overlap is allowed, but no preview may be buried:
+            // any pairwise intersection stays under 40% of the smaller one.
+            for i in 0..places.len() {
+                for j in i + 1..places.len() {
+                    let (a, b) = (&places[i], &places[j]);
+                    let ox = (a.x + a.width).min(b.x + b.width) - a.x.max(b.x);
+                    let oy = (a.y + a.height).min(b.y + b.height) - a.y.max(b.y);
+                    let inter = ox.max(0.0) * oy.max(0.0);
+                    let smaller = (a.width * a.height).min(b.width * b.height);
+                    assert!(
+                        inter < 0.4 * smaller,
+                        "n={n}: previews {i} and {j} overlap too much: {a:?} {b:?}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]
