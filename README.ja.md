@@ -94,7 +94,7 @@ layerrule = ignorealpha 0.2, hyprPanopticon
 
 ## 設定
 
-任意設定ファイル `~/.config/hyprpanopticon/config.toml` で指定します。すべてのキーは任意であり、範囲外の値はクランプされます:
+任意設定ファイル `~/.config/hyprpanopticon/config.toml` で指定します(`--config <PATH>` / `-c <PATH>` で別のパスも指定できます)。すべてのキーは任意であり、範囲外の値はクランプされます:
 
 ```toml
 # フォーカスと反対側のプレビューのスケール(0.05..1.0、デフォルト 0.45)。

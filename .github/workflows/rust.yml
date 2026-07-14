@@ -8,6 +8,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  GLS_VERSION: v1.1.0
+  GLS_PREFIX: /opt/gtk4-layer-shell
 
 jobs:
   build:
@@ -16,6 +18,29 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-4-dev libwayland-dev wayland-protocols \
+          gobject-introspection libgirepository1.0-dev meson ninja-build
+    - name: Cache gtk4-layer-shell
+      id: cache-gls
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.GLS_PREFIX }}
+        key: gtk4-layer-shell-${{ runner.os }}-${{ env.GLS_VERSION }}
+    - name: Build gtk4-layer-shell
+      if: steps.cache-gls.outputs.cache-hit != 'true'
+      run: |
+        git clone --depth 1 --branch "$GLS_VERSION" https://github.com/wmww/gtk4-layer-shell.git
+        cd gtk4-layer-shell
+        meson setup --prefix "$GLS_PREFIX" -Dexamples=false -Ddocs=false -Dtests=false -Dvapi=false build
+        ninja -C build
+        sudo ninja -C build install
+    - name: Set up gtk4-layer-shell environment
+      run: |
+        echo "PKG_CONFIG_PATH=$GLS_PREFIX/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH" >> "$GITHUB_ENV"
+        echo "LD_LIBRARY_PATH=$GLS_PREFIX/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
     - name: check
       run: cargo check --verbose
     - name: Run tests
