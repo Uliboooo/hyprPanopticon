@@ -23,6 +23,8 @@ Run with no arguments to open the overlay on the focused monitor.
 OPTIONS:
     -h, --help                   Print this help and exit
     -V, --version                Print the version and exit
+    -c, --config <PATH>          Read the config from PATH instead of the
+                                 default location
         --switch-workspace <N>   Debug: dispatch a switch to workspace N, no UI
         --dump-window <0xADDR> [OUT.png]
                                  Debug: capture one window (address from
@@ -38,8 +40,8 @@ KEYS (while the overlay is open):
 
 CONFIGURATION:
     Optional TOML file at ~/.config/hyprpanopticon/config.toml
-    ($XDG_CONFIG_HOME is honored). All keys are optional; out-of-range
-    values are clamped:
+    ($XDG_CONFIG_HOME is honored; --config overrides the path). All keys
+    are optional; out-of-range values are clamped:
 
         min_scale = 0.6                # smallest preview scale (0.05..1)
         falloff = 1.2                  # shrink speed away from focus (0.1..10)
@@ -48,6 +50,7 @@ CONFIGURATION:
         spread = 0.25                  # angular density (0..1)
         center_pull = 0.0              # pull side previews inward (0..1)
         per_monitor_workspaces = false # true = focused monitor's workspaces only
+        show_workspace_index = false   # true = badge previews with their name/index
 
     See the README for details on each key.
 "
@@ -108,9 +111,11 @@ fn main() -> glib::ExitCode {
         };
     }
 
+    let config_override = config_path_arg(&args);
+
     // Query Hyprland while GTK starts up; the IPC round trips and GTK/Wayland
     // init otherwise serialize and both sit on the path to the first frame.
-    let config = config::load();
+    let config = config::load(config_override.as_deref());
     let per_monitor = config.per_monitor_workspaces;
     let early_snapshot = std::cell::RefCell::new(Some(std::thread::spawn(move || {
         ipc::snapshot::take(per_monitor)
@@ -148,6 +153,20 @@ fn main() -> glib::ExitCode {
     app.run_with_args::<&str>(&[])
 }
 
+/// `--config <PATH>`, `-c <PATH>`, or `--config=<PATH>`.
+fn config_path_arg(args: &[String]) -> Option<std::path::PathBuf> {
+    for (i, arg) in args.iter().enumerate() {
+        if arg == "--config" || arg == "-c" {
+            let path = args.get(i + 1).expect("usage: --config <PATH>");
+            return Some(path.into());
+        }
+        if let Some(path) = arg.strip_prefix("--config=") {
+            return Some(path.into());
+        }
+    }
+    None
+}
+
 fn dump_window(addr: u64, out: &str) -> anyhow::Result<()> {
     use anyhow::Context;
     gtk::init().context("gtk init")?;
@@ -157,4 +176,22 @@ fn dump_window(addr: u64, out: &str) -> anyhow::Result<()> {
         .with_context(|| format!("unsupported pixel format {:?}", frame.format))?;
     texture.save_to_png(out).context("write png")?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn config_path_arg_forms() {
+        assert_eq!(config_path_arg(&args(&["app"])), None);
+        let expected = Some(std::path::PathBuf::from("/tmp/c.toml"));
+        assert_eq!(config_path_arg(&args(&["app", "--config", "/tmp/c.toml"])), expected);
+        assert_eq!(config_path_arg(&args(&["app", "-c", "/tmp/c.toml"])), expected);
+        assert_eq!(config_path_arg(&args(&["app", "--config=/tmp/c.toml"])), expected);
+    }
 }

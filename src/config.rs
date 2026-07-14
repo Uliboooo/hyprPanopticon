@@ -1,7 +1,8 @@
 //! Optional user configuration from
 //! `$XDG_CONFIG_HOME/hyprpanopticon/config.toml` (usually
-//! `~/.config/hyprpanopticon/config.toml`). Every key is optional; missing
-//! keys keep the built-in defaults. Values are clamped to sane ranges.
+//! `~/.config/hyprpanopticon/config.toml`), or from a path given with
+//! `--config`. Every key is optional; missing keys keep the built-in
+//! defaults. Values are clamped to sane ranges.
 
 use serde::Deserialize;
 
@@ -46,10 +47,26 @@ fn config_path() -> Option<std::path::PathBuf> {
     Some(base.join("hyprpanopticon/config.toml"))
 }
 
-pub fn load() -> Config {
+/// Load the config. A missing default file is silently fine; a path the user
+/// asked for with `--config` warns when it cannot be read.
+pub fn load(path_override: Option<&std::path::Path>) -> Config {
     let mut config = Config::default();
-    let Some(path) = config_path() else { return config };
-    let Ok(text) = std::fs::read_to_string(&path) else { return config };
+    let path = match path_override {
+        Some(p) => p.to_path_buf(),
+        None => match config_path() {
+            Some(p) => p,
+            None => return config,
+        },
+    };
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(e) => {
+            if path_override.is_some() {
+                eprintln!("hyprPanopticon: cannot read {}: {e}", path.display());
+            }
+            return config;
+        }
+    };
     match toml::from_str::<FileConfig>(&text) {
         Ok(file) => apply(&mut config, &file),
         Err(e) => eprintln!("hyprPanopticon: ignoring bad {}: {e}", path.display()),

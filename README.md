@@ -113,8 +113,9 @@ layerrule = ignorealpha 0.2, hyprPanopticon
 
 ## Configuration
 
-Optional, at `~/.config/hyprpanopticon/config.toml`. All keys are optional;
-out-of-range values are clamped:
+Optional, at `~/.config/hyprpanopticon/config.toml` (or any path passed with
+`--config <PATH>` / `-c <PATH>`). All keys are optional; out-of-range values
+are clamped:
 
 ```toml
 # Scale of the preview opposite the focus (0.05..1.0, default 0.6).
