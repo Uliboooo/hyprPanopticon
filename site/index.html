@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hyprPanopticon — Hyprland workspace overview</title>
+<meta name="description" content="A Hyprland workspace overview: workspaces arranged on a circle with live window previews.">
+<meta property="og:title" content="hyprPanopticon">
+<meta property="og:description" content="A Hyprland workspace overview: workspaces on a circle with live previews.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="assets/eg2.png">
+<style>
+  :root {
+    --paper: #f1eee5;
+    --paper-light: #fbf9f2;
+    --ink: #2d302b;
+    --ink-muted: #77766d;
+    --rule: #b7b0a2;
+    --rule-soft: #d0c9bb;
+    --rose: #d38ca0;
+    --rose-wash: #ead2d9;
+    --warning: #a84435;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", "Noto Serif", serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.7;
+  }
+  a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { color: var(--rose); }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 28px; }
+
+  /* Hero */
+  header.hero {
+    padding: 88px 0 56px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .badges { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .badge {
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    border: 1px solid var(--rule);
+    padding: 3px 12px;
+    background: var(--paper-light);
+  }
+  .badge.version { color: var(--rose); border-color: var(--rose); }
+  .lang-link {
+    margin-left: auto;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    color: var(--ink-muted);
+  }
+  h1 {
+    font-size: clamp(40px, 8vw, 68px);
+    margin: 22px 0 8px;
+    letter-spacing: -0.01em;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .tagline {
+    font-size: clamp(17px, 2.6vw, 20px);
+    color: var(--ink-muted);
+    max-width: 620px;
+    margin: 0 0 30px;
+  }
+  .cta { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn {
+    display: inline-block;
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    border: 1px solid var(--rule);
+    background: var(--paper-light);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .btn:hover { border-color: var(--rose); color: var(--rose); background: var(--rose-wash); }
+  .btn.primary { border-color: var(--ink); }
+  .btn.primary:hover { border-color: var(--rose); }
+
+  /* Demo */
+  .demo { margin-top: 40px; }
+  .demo-frame {
+    border: 1px solid var(--rule);
+    background: var(--paper-light);
+    padding: 8px;
+  }
+  .demo-frame video, .demo-frame img { display: block; width: 100%; height: auto; }
+
+  section { padding: 56px 0; border-bottom: 1px solid var(--rule-soft); }
+  h2 {
+    font-size: clamp(24px, 4vw, 30px);
+    margin: 0 0 6px;
+    font-weight: 700;
+  }
+  .section-sub { color: var(--ink-muted); margin: 0 0 30px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0;
+    border-top: 1px solid var(--rule-soft);
+    border-left: 1px solid var(--rule-soft);
+  }
+  .card {
+    background: var(--paper-light);
+    border-right: 1px solid var(--rule-soft);
+    border-bottom: 1px solid var(--rule-soft);
+    padding: 22px 24px;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 17px; font-weight: 700; }
+  .card p { margin: 0; color: var(--ink-muted); font-size: 15px; }
+  .card .num {
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--rose);
+    font-weight: 700;
+    display: block;
+    margin-bottom: 12px;
+  }
+
+  pre {
+    background: var(--paper-light);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--rose);
+    padding: 18px 20px;
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  code {
+    font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+    color: var(--ink);
+  }
+  p code, li code, td code {
+    background: var(--paper-light);
+    border: 1px solid var(--rule-soft);
+    padding: 0 5px;
+    font-size: 0.9em;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--rule-soft); }
+  th {
+    color: var(--ink-muted);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--rule);
+  }
+  td:first-child { white-space: nowrap; }
+  .keys { color: var(--rose); font-family: ui-monospace, monospace; font-weight: 700; }
+
+  footer {
+    padding: 36px 0 56px;
+    color: var(--ink-muted);
+    font-size: 14px;
+  }
+  footer a { color: var(--ink-muted); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="badges">
+      <span class="badge">Wayland · Hyprland · GTK4</span>
+      <span class="badge version">v0.6.0</span>
+      <a class="lang-link" href="index.ja.html">日本語</a>
+    </div>
+    <h1>hyprPanopticon</h1>
+    <p class="tagline">A Hyprland workspace overview — your workspaces laid out on a circle, each a live thumbnail of what's actually running.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Uliboooo/hyprPanopticon" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+      <a class="btn" href="#install">Install</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap demo">
+  <div class="demo-frame">
+    <video src="assets/rec_panop.mp4" poster="assets/eg2.png" autoplay loop muted playsinline></video>
+  </div>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <h2>What it does</h2>
+    <p class="section-sub">A radial overlay that covers the focused monitor when you summon it.</p>
+    <div class="grid">
+      <div class="card">
+        <span class="num">01</span>
+        <h3>Ring layout</h3>
+        <p>Workspaces arranged around a circle. The focused one shows at full size; the rest scale down so the whole layout always fits.</p>
+      </div>
+      <div class="card">
+        <span class="num">02</span>
+        <h3>Live thumbnails</h3>
+        <p>Every window is captured via <code>hyprland-toplevel-export-v1</code> — even windows on non-visible workspaces — and composed at real geometry.</p>
+      </div>
+      <div class="card">
+        <span class="num">03</span>
+        <h3>Live refresh</h3>
+        <p>The focused preview is re-captured continuously, and Hyprland events (open/close/move) refresh the overview as it happens.</p>
+      </div>
+      <div class="card">
+        <span class="num">04</span>
+        <h3>Special workspaces</h3>
+        <p>Scratchpads appear as a numbered column on the left edge. Click one or press its number to toggle.</p>
+      </div>
+      <div class="card">
+        <span class="num">05</span>
+        <h3>Tunable</h3>
+        <p>Scale falloff, focus width, ring spread, center pull and margins are all configurable via a small TOML file.</p>
+      </div>
+      <div class="card">
+        <span class="num">06</span>
+        <h3>Nix-first</h3>
+        <p>Run it with a single <code>nix run</code>, or wire it in as a flake input for NixOS / home-manager.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <p class="section-sub">Try it without installing anything:</p>
+    <pre><code>nix run github:Uliboooo/hyprPanopticon</code></pre>
+    <p class="section-sub" style="margin-top:28px">Then bind it in your Hyprland config:</p>
+    <pre><code>bind = SUPER, Tab, exec, hyprpanopticon
+
+# optional: blur the overlay backdrop
+layerrule = blur, hyprPanopticon
+layerrule = ignorealpha 0.2, hyprPanopticon</code></pre>
+    <p class="section-sub" style="margin-top:20px">Supported systems: <code>x86_64-linux</code>, <code>aarch64-linux</code>. Developed against <strong>Hyprland 0.55</strong>.</p>
+  </div>
+</section>
+
+<section id="usage">
+  <div class="wrap">
+    <h2>Usage</h2>
+    <p class="section-sub">Launch the overlay, then:</p>
+    <table>
+      <thead><tr><th>Input</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td><span class="keys">← ↑ / h k</span></td><td>rotate focus counter-clockwise</td></tr>
+        <tr><td><span class="keys">→ ↓ / l j</span></td><td>rotate focus clockwise</td></tr>
+        <tr><td><span class="keys">mouse wheel</span></td><td>rotate focus</td></tr>
+        <tr><td><span class="keys">Enter / Space</span></td><td>switch to the focused workspace and close</td></tr>
+        <tr><td><span class="keys">click a preview</span></td><td>switch to that workspace and close</td></tr>
+        <tr><td><span class="keys">1–9</span></td><td>toggle the numbered special workspace</td></tr>
+        <tr><td><span class="keys">Esc / q</span></td><td>close without switching</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="config">
+  <div class="wrap">
+    <h2>Configuration</h2>
+    <p class="section-sub">Optional, at <code>~/.config/hyprpanopticon/config.toml</code>. All keys optional; out-of-range values are clamped.</p>
+    <pre><code>min_scale   = 0.6    # scale of the preview opposite the focus (0.05..1.0)
+falloff     = 1.2    # how fast previews shrink away from focus (0.1..10)
+focus_width = 0.32   # focused preview width as a fraction of screen (0.1..0.8)
+margin      = 24     # screen-edge margin in px (0..200)
+spread      = 0.25   # angular density (0..1)
+center_pull = 0.0    # pull small side previews toward center (0..1)
+per_monitor_workspaces = false   # only the focused monitor's workspaces
+show_workspace_index   = false   # badge each preview with its index</code></pre>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><a href="https://github.com/Uliboooo/hyprPanopticon">github.com/Uliboooo/hyprPanopticon</a> · MIT License</p>
+  </div>
+</footer>
+
+</body>
+</html>
