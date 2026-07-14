@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="hyprPanopticon">
+  <!-- A ring of workspace cards, each tangent to the circle, shrinking and
+       pulling inward away from the focused card (rose, top). -->
+  <rect x="0" y="0" width="256" height="256" fill="#f1eee5"/>
+  <g transform="translate(0 14)">
+
+  <!-- ±45° -->
+  <g transform="rotate(45 128 128)">
+    <rect x="99" y="20" width="58" height="40" fill="#2d302b"/>
+    <line x1="124" y1="20" x2="124" y2="60" stroke="#f1eee5" stroke-width="2.5"/>
+    <line x1="124" y1="40" x2="157" y2="40" stroke="#f1eee5" stroke-width="2.5"/>
+  </g>
+  <g transform="rotate(-45 128 128)">
+    <rect x="99" y="20" width="58" height="40" fill="#2d302b"/>
+    <line x1="124" y1="20" x2="124" y2="60" stroke="#f1eee5" stroke-width="2.5"/>
+    <line x1="124" y1="40" x2="157" y2="40" stroke="#f1eee5" stroke-width="2.5"/>
+  </g>
+
+  <!-- ±90° -->
+  <g transform="rotate(90 128 128)">
+    <rect x="104" y="27" width="48" height="34" fill="#2d302b"/>
+    <line x1="125" y1="27" x2="125" y2="61" stroke="#f1eee5" stroke-width="2"/>
+  </g>
+  <g transform="rotate(-90 128 128)">
+    <rect x="104" y="27" width="48" height="34" fill="#2d302b"/>
+    <line x1="125" y1="27" x2="125" y2="61" stroke="#f1eee5" stroke-width="2"/>
+  </g>
+
+  <!-- ±135° -->
+  <g transform="rotate(135 128 128)">
+    <rect x="108" y="36" width="40" height="28" fill="#2d302b"/>
+    <line x1="126" y1="36" x2="126" y2="64" stroke="#f1eee5" stroke-width="1.75"/>
+  </g>
+  <g transform="rotate(-135 128 128)">
+    <rect x="108" y="36" width="40" height="28" fill="#2d302b"/>
+    <line x1="126" y1="36" x2="126" y2="64" stroke="#f1eee5" stroke-width="1.75"/>
+  </g>
+
+  <!-- 180° (opposite the focus, smallest) -->
+  <g transform="rotate(180 128 128)">
+    <rect x="112" y="42.5" width="32" height="23" fill="#2d302b"/>
+    <line x1="126" y1="42.5" x2="126" y2="65.5" stroke="#f1eee5" stroke-width="1.75"/>
+  </g>
+
+  <!-- central observer -->
+  <ellipse cx="128" cy="128" rx="23" ry="15" fill="#fbf9f2" stroke="#2d302b" stroke-width="4"/>
+  <ellipse cx="128" cy="122.5" rx="5.5" ry="6" fill="#d38ca0"/>
+
+  <!-- focused workspace: top, largest, rose -->
+  <rect x="92" y="14" width="72" height="52" fill="#d38ca0"/>
+  <line x1="125" y1="14" x2="125" y2="66" stroke="#f1eee5" stroke-width="3"/>
+  <line x1="125" y1="40" x2="164" y2="40" stroke="#f1eee5" stroke-width="3"/>
+
+  </g>
+</svg>
